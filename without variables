@@ -1,0 +1,71 @@
+provider "aws" {
+    region = "us-east-1"
+}
+resource "aws_instance" "foobar" {
+    ami = "ami-0e472ba40eb589f49"
+    instance_type = "t2.micro"
+    subnet_id = aws_subnet.wings.id
+    vpc_security_group_ids = [aws_security_group.wingssh.id]
+    key_name = "A44L"
+    tags = {
+        Name = "fooinstance"
+    }
+}  
+resource "aws_vpc" "wing" {
+    cidr_block = "10.5.0.0/16"
+    tags = {
+        Name = "foovpc"
+   }
+}
+resource "aws_subnet" "wings" {
+    vpc_id = aws_vpc.wing.id
+    cidr_block = "10.5.1.0/24"
+    availability_zone = "us-east-1a"
+    tags = {
+        Name = "foo-web-subnet"
+    }
+}
+resource "aws_internet_gateway" "wingful" {
+    vpc_id = aws_vpc.wing.id
+    tags = {
+        Name = "foo-IGW"
+    }
+}
+resource "aws_route_table" "winged" {
+    vpc_id = aws_vpc.wing.id
+     route {
+       cidr_block = "0.0.0.0/0"
+       gateway_id = aws_internet_gateway.wingful.id
+     }
+    tags = {
+        Name = "foo-route-table"
+    }
+}
+resource "aws_route_table_association" "wingz" {
+    subnet_id = aws_subnet.wings.id
+    route_table_id = aws_route_table.winged.id
+}
+resource "aws_eip" "wingly" {
+    instance = aws_instance.foobar.id
+    vpc = true
+}
+resource "aws_security_group" "wingssh" {
+  name        = "allow ssh"
+  description = "Allow ssh inbound traffic"
+  vpc_id      = aws_vpc.wing.id
+
+  ingress {
+    description      = "ssh from Internet"
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+    egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
